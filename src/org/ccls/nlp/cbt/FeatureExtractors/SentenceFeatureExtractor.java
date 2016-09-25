@@ -115,7 +115,7 @@ public class SentenceFeatureExtractor implements SimpleFeatureExtractor {
 		//Rupayan's edit - adding AnnaHedge feature
 		for(String phrase: hedgePhrases){
 			if(sentence.contains(phrase)){
-				hedges.add(new Feature("dictionary_hedgeFeatureSentHasHedgePhrase_" + phrase, true));
+				hedges.add(new Feature("dictHedgeFeatureSentHasHedgePhrase_", phrase));
 				break;
 			}
 		}

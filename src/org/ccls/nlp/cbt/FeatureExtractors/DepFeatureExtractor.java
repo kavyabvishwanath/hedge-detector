@@ -81,15 +81,16 @@ public class DepFeatureExtractor implements SimpleFeatureExtractor{
 	 * @param token
      * @return A Feature if the token is a hedge, null otherwise
      */
+	/*
 	private Feature getHedgeFeature(JCas jCas, DependencyNode node, String featureName, Token token) {
 		//HEDGE FEATURES WITH DICTIONARY LOOKUP (Rupayan)
-
+		String featureNameUpper = Character.toUpperCase(featureName.charAt(0)) + featureName.substring(1); //capital first char for camelCase
 		if(hedgeProp.contains(token.getCoveredText().toLowerCase())) {
-			return new Feature("dictionary_" + featureName + "Prop_", token.getCoveredText().toLowerCase());
+			return new Feature("dict" + featureNameUpper + "Prop_", token.getCoveredText().toLowerCase());
 			//return new Feature(featureName + "Prop_" + token.getLemma().toLowerCase(), true);
 		}
 		if(hedgeRel.contains(token.getCoveredText().toLowerCase())) {
-			return new Feature("dictionary_" + featureName + "Rel_", token.getCoveredText().toLowerCase());
+			return new Feature("dict" + featureNameUpper + "Rel_", token.getCoveredText().toLowerCase());
 			//return new Feature(featureName + "Rel_" + token.getLemma().toLowerCase(), true);
 		}
 
@@ -105,11 +106,36 @@ public class DepFeatureExtractor implements SimpleFeatureExtractor{
 					return new Feature(featureName + "Prop_", token.getCoveredText().toLowerCase());
 					//return new Feature(featureName + "Prop_" + token.getCoveredText().toLowerCase(), description.confidence);
 				else
-					return new Feature(featureName + "_" + description.word.toLowerCase(), description.confidence);
+					return new Feature(featureName + "_", token.getCoveredText().toLowerCase());
+					//return new Feature(featureName + "_" + description.word.toLowerCase(), description.confidence);
 			}
 		}
-
 		return null;//FEATURE IS NOT A HEDGE
+	}
+	*/
+
+	private List<Feature> getHedgeFeature(JCas jCas, DependencyNode node, String featureName, Token token) {
+		List<Feature> featureList = new ArrayList<Feature>();
+
+		//HEDGE FEATURES WITH DICTIONARY LOOKUP (Rupayan)
+		String featureNameUpper = Character.toUpperCase(featureName.charAt(0)) + featureName.substring(1); //capital first char for camelCase
+		if (hedgeProp.contains(token.getCoveredText().toLowerCase()))
+			featureList.add(new Feature("dict" + featureNameUpper + "Prop_", token.getCoveredText().toLowerCase()));
+		else if (hedgeRel.contains(token.getCoveredText().toLowerCase()))
+			featureList.add(new Feature("dict" + featureNameUpper + "Rel_", token.getCoveredText().toLowerCase()));
+
+		//HEDGE FEATURES WITH CLASSIFIER (Seth)
+		Map<Token, HedgeClassifier.HedgeInfo> sentenceHedges = CommittedBeliefTrainAndTestAnnotator.sentenceHedges;
+		if (sentenceHedges.containsKey(token)) {
+			HedgeClassifier.HedgeInfo description = sentenceHedges.get(token);
+			if (description != null) {// && description.judgment.contains("S") ) {
+				featureList.add(new Feature(featureName + "Token_", token.getCoveredText()));
+				featureList.add(new Feature(featureName + "Phrase_", description.word.toLowerCase()));
+				featureList.add(new Feature(featureName + "Type_", description.type));
+				featureList.add(new Feature(featureName + "Confidence_", description.confidence));
+			}
+		}
+		return featureList;
 	}
 
 	@Override
@@ -227,9 +253,11 @@ public class DepFeatureExtractor implements SimpleFeatureExtractor{
 			}
 
 			//hedge feature
-			Feature feature = getHedgeFeature(jCas, node, "hedgeFeatureChildIsHedge", token);
+
+			/*Feature feature = getHedgeFeature(jCas, node, "hedgeFeatureChildIsHedge", token);
 			if (feature != null)
-				features.add(feature);
+				features.add(feature);*/
+			features.addAll(getHedgeFeature(jCas, node, "hedgeFeatureChildIsHedge", token));
 		}
 		return features;
 	}
@@ -336,9 +364,10 @@ public class DepFeatureExtractor implements SimpleFeatureExtractor{
 			//features.add(new Feature("Parent-weiwei", weiweiDocumentFeatures.get(sentenceNumber).get(token)));
 
 			//hedge feature
-			Feature feature = getHedgeFeature(jCas, node, "hedgeFeatureParentIsHedge", token);
+			/*Feature feature = getHedgeFeature(jCas, node, "hedgeFeatureParentIsHedge", token);
 			if (feature != null)
-				features.add(feature);
+				features.add(feature);*/
+			features.addAll(getHedgeFeature(jCas, node, "hedgeFeatureParentIsHedge", token));
 
 			if (token.getPos().charAt(0) == 'V') {
 				if (verbnetMapper.getVerbNetClasses(lemma).size() == 1) {
@@ -457,9 +486,10 @@ public class DepFeatureExtractor implements SimpleFeatureExtractor{
 				//features.add(new Feature("DepAncestors-weiwei", weiweiDocumentFeatures.get(sentenceNumber).get(token)));
 				
 				//hedge feature
-				Feature feature = getHedgeFeature(jCas, node, "hedgeFeatureDepAncestorIsHedge", token);
+				/*Feature feature = getHedgeFeature(jCas, node, "hedgeFeatureDepAncestorIsHedge", token);
 				if (feature != null)
-					features.add(feature);
+					features.add(feature);*/
+				features.addAll(getHedgeFeature(jCas, node, "hedgeFeatureDepAncestorIsHedge", token));
 				
 				if (verbnetMapper.getVerbNetClasses(token.getLemma()).size() == 1)
 					features.add(new Feature("DepAncestors-VerbClass",verbnetMapper.getVerbNetClasses(token.getLemma()).get(0)));
@@ -533,9 +563,10 @@ public class DepFeatureExtractor implements SimpleFeatureExtractor{
 					}	
 					
 					//hedge feature
-					Feature feature = getHedgeFeature(jCas, node, "hedgeFeatureSiblingIsHedge", token);
+					/*Feature feature = getHedgeFeature(jCas, node, "hedgeFeatureSiblingIsHedge", token);
 					if (feature != null)
-						features.add(feature);
+						features.add(feature);*/
+					features.addAll(getHedgeFeature(jCas, node, "hedgeFeatureSiblingIsHedge", token));
 					
 					return features;
 				}

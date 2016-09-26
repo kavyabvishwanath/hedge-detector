@@ -174,7 +174,7 @@ public class TokenFeatureExtractor implements SimpleFeatureExtractor{
 			featureList.add(new Feature("dict" + featureNameUpper + "Rel_", token.getCoveredText().toLowerCase()));
 
 		//HEDGE FEATURES WITH CLASSIFIER (Seth)
-		if (description != null) {// && description.judgment.contains("S") ) {
+		if (description != null) {
 			featureList.add(new Feature(featureName + "Token_", token.getCoveredText()));
 			featureList.add(new Feature(featureName + "Phrase_", description.word.toLowerCase()));
 			featureList.add(new Feature(featureName + "Type_", description.type));

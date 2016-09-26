@@ -128,7 +128,7 @@ public class DepFeatureExtractor implements SimpleFeatureExtractor{
 		Map<Token, HedgeClassifier.HedgeInfo> sentenceHedges = CommittedBeliefTrainAndTestAnnotator.sentenceHedges;
 		if (sentenceHedges.containsKey(token)) {
 			HedgeClassifier.HedgeInfo description = sentenceHedges.get(token);
-			if (description != null) {// && description.judgment.contains("S") ) {
+			if (description != null) {
 				featureList.add(new Feature(featureName + "Token_", token.getCoveredText()));
 				featureList.add(new Feature(featureName + "Phrase_", description.word.toLowerCase()));
 				featureList.add(new Feature(featureName + "Type_", description.type));

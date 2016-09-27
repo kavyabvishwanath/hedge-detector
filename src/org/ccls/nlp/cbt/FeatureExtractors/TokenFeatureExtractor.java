@@ -167,14 +167,24 @@ public class TokenFeatureExtractor implements SimpleFeatureExtractor{
 		HedgeClassifier.HedgeInfo description = CommittedBeliefTrainAndTestAnnotator.sentenceHedges.get(token);
 
 		//HEDGE FEATURES WITH DICTIONARY LOOKUP (Rupayan)
-		String featureNameUpper = Character.toUpperCase(featureName.charAt(0)) + featureName.substring(1); //capital first char for camelCase
-		if (hedgeProp.contains(token.getCoveredText().toLowerCase()))
-			featureList.add(new Feature("dict" + featureNameUpper + "Prop_", token.getCoveredText().toLowerCase()));
-		else if (hedgeRel.contains(token.getCoveredText().toLowerCase()))
-			featureList.add(new Feature("dict" + featureNameUpper + "Rel_", token.getCoveredText().toLowerCase()));
 
-		//HEDGE FEATURES WITH CLASSIFIER (Seth)
+		//capital first char for camelCase
+		String featureNameCapital = Character.toUpperCase(featureName.charAt(0)) + featureName.substring(1);
+		if (hedgeProp.contains(token.getCoveredText().toLowerCase()))
+			featureList.add(new Feature("dict" + featureNameCapital + "Prop_", token.getCoveredText().toLowerCase()));
+		else if (hedgeRel.contains(token.getCoveredText().toLowerCase()))
+			featureList.add(new Feature("dict" + featureNameCapital + "Rel_", token.getCoveredText().toLowerCase()));
+
 		if (description != null) {
+			//HEDGE FEATURES WITH CLASSIFIER (Risa)
+			if (description.type.equals("hProp"))
+				featureList.add(new Feature(featureName + "Prop_", token.getCoveredText().toLowerCase()));
+			else if (description.type.equals("hRel"))
+				featureList.add(new Feature(featureName + "Rel_", token.getCoveredText().toLowerCase()));
+			else
+				featureList.add(new Feature(featureName + "_", token.getCoveredText().toLowerCase()));
+
+			//SEPARATED HEDGE FEATURES WITH CLASSIFIER (Seth)
 			featureList.add(new Feature(featureName + "Token_", token.getCoveredText()));
 			featureList.add(new Feature(featureName + "Phrase_", description.word.toLowerCase()));
 			featureList.add(new Feature(featureName + "Type_", description.type));
@@ -213,12 +223,7 @@ public class TokenFeatureExtractor implements SimpleFeatureExtractor{
 		}
 		
 		//hedge features
-		/*Feature feature = getHedgeFeature("hedgeFeature", token);
-		if (feature != null)
-			features.add(feature);*/
 		features.addAll(getHedgeFeature("hedgeFeature", token));
-
-
 
 		if (!ngramMode && pos.charAt(0) == 'V') {
 			List<String> verbnetMatches = verbnetMapper.getVerbNetClasses(lemma);

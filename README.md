@@ -5,12 +5,12 @@ This repo does not include necessary library dependencies (download link to be p
 
 To compile:
 
-`mkdir bin
-javac -cp src:{path_to_library_dependencies}/* -d bin src/org/ccls/nlp/cbt/Experimenter_fb_4_svmlite.java`
+`mkdir bin`  
+`javac -cp src:{path_to_library_dependencies}/* -d bin src/org/ccls/nlp/cbt/Experimenter_fb_4_svmlite.java`
 
 
 To run:
 
-`export PATH=$PATH:{absolute_path_to_repo}/svm
-java -cp bin:desc:{path_to_library_deps}/* org.ccls.nlp.cbt.Experimenter_fb_4_svmlite`
+`export PATH=$PATH:{absolute_path_to_repo}/svm`  
+`java -cp bin:desc:{path_to_library_deps}/* org.ccls.nlp.cbt.Experimenter_fb_4_svmlite`
 

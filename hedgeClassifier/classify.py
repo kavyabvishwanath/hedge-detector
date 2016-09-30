@@ -72,12 +72,8 @@ def find_hedges(sentences):
 
             
 def read_dictionary():
-
-    #with open('hedgeClassifier/multiword_dict.csv', 'rU') as f:
+    """
     with open('hedge/multiword.txt') as f:
-        #reader = csv.reader(f)
-        #skip header
-        #reader.next()
         reader = f.readlines()
         for line in reader:
             line = line.strip()
@@ -86,23 +82,32 @@ def read_dictionary():
             if tokenized[0] not in multiword_dictionary:
                 multiword_dictionary[tokenized[0]] = []
             multiword_dictionary[tokenized[0]].append([line, 'multiword', tokenized])
-
-    #with open('hedgeClassifier/dictionary.csv', 'rU') as f:
+    """
+    with open('hedgeClassifier/multiword_dict.csv', 'rU') as f:
+        reader = csv.DictReader(f, delimiter='\t')
+        for row in reader:
+            hedge = row['Hedge'].strip().lower()
+            tokenized = tokenize.word_tokenize(hedge)
+            if tokenized[0] not in multiword_dictionary:
+                multiword_dictionary[tokenized[0]] = []
+            multiword_dictionary[tokenized[0]].append([hedge, 'multiword', tokenized])
+    """
     with open('hedge/hProp.txt') as f:
-        #reader = csv.reader(f)
-        #reader.next()
         reader = f.readlines()
         for line in reader[1:]:
             line = line.strip()
             #print line
             dictionary[line.lower()] = 'hProp'
     with open('hedge/hRel.txt') as f:
-        #reader = csv.reader(f)
-        #reader.next()
         reader = f.readlines()
         for line in reader[1:]:
             line = line.strip()
             dictionary[line.lower()] = 'hRel'
+    """
+    with open('hedgeClassifier/dictionary.csv', 'rU') as f:
+        reader = csv.DictReader(f, delimiter='\t')
+        for row in reader:
+            dictionary[row['Hedge'].strip().lower()] = row['Type'].strip()
 
 def read_sentences(tokens):
     sentences = []
@@ -140,8 +145,6 @@ if __name__=="__main__":
     #print tokens
     sentences = read_sentences(tokens)
     #print sentences
-    #read_dictionary('multiword_dict.csv')
-    #read_dictionary('dictionary.csv')
     #print dictionary
     read_dictionary()
     #print len(dictionary)

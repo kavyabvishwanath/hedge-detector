@@ -185,7 +185,7 @@ public class TokenFeatureExtractor implements SimpleFeatureExtractor{
 				featureList.add(new Feature(featureName + "_", token.getCoveredText().toLowerCase()));
 
 			//SEPARATED HEDGE FEATURES WITH CLASSIFIER (Seth)
-			featureList.add(new Feature(featureName + "Token_", token.getCoveredText()));
+			featureList.add(new Feature(featureName + "Token_", token.getCoveredText().toLowerCase()));
 			featureList.add(new Feature(featureName + "Phrase_", description.word.toLowerCase()));
 			featureList.add(new Feature(featureName + "Type_", description.type));
 			featureList.add(new Feature(featureName + "Confidence_", description.confidence));

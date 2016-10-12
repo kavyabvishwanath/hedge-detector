@@ -34,6 +34,22 @@ def check_hedge_pos(token, pos):
         return pos[0] != 'i'
     if token == 'might' or token == 'may':
         return pos[0] != 'n'
+    """
+    # Seth's additions
+    if token == 'around':
+        return pos == 'in'
+    if token == 'kinda':
+        return pos[:2] == 'rb'
+    if token == 'likely':
+        return pos[:2] == 'rb' # this could be weird - not sure about "That is likely to happen."
+    if token == 'may':
+        return pos[0] != 'n' # not sufficient - just excludes month
+    if token == 'might':
+        return pos[0] != 'n' # not sufficient - just excludes might==strength
+    if token == 'pretty':
+        return pos[0] != 'j'
+    """
+
     return True
     
 def check_hedge_next(lemma, next):
@@ -47,28 +63,28 @@ def check_hedge_next(lemma, next):
 def find_hedges(sentences):
     for sent in sentences:
         #if sent[len(sent) - 1] != '?':
-            for i in range(len(sent)):
-                token = sent[i][0].lower()
-                pos = sent[i][1].lower()
-                lemma = sent[i][2].lower()
-                # print lemma
-                if token in multiword_dictionary:
-                    hedge = multiword_dictionary[token]
-                    for j in range(len(hedge)):
-                        match = True
+        for i in range(len(sent)):
+            token = sent[i][0].lower()
+            pos = sent[i][1].lower()
+            lemma = sent[i][2].lower()
+            # print lemma
+            if token in multiword_dictionary:
+                hedge = multiword_dictionary[token]
+                for j in range(len(hedge)):
+                    match = True
+                    for k in range(len(hedge[j][2])):
+                        if i + k >= len(sent) or sent[i + k][0].lower() != hedge[j][2][k] or sent[i+k][3] != '_':
+                            match = False
+                    if match:
                         for k in range(len(hedge[j][2])):
-                            if i + k >= len(sent) or sent[i + k][0].lower() != hedge[j][2][k] or sent[i+k][3] != '_':
-                                match = False
-                        if match:
-                            for k in range(len(hedge[j][2])):
-                                sent[i+k][3] = 'M' + str(k) + '\t1\t' + hedge[j][1]
-                if token in dictionary and sent[i][3] == '_':
-                    pos_ok = check_hedge_pos(token, pos)
-                    next_ok = True
-                    if i + 1 < len(sent):
-                        next_ok = check_hedge_next(lemma, sent[i+1][0].lower())
-                    if pos_ok and next_ok:
-                        sent[i][3] = 'S\t1\t' + dictionary[token]
+                            sent[i+k][3] = 'M' + str(k) + '\t1\t' + hedge[j][1]
+            if token in dictionary and sent[i][3] == '_':
+                pos_ok = check_hedge_pos(token, pos)
+                next_ok = True
+                if i + 1 < len(sent):
+                    next_ok = check_hedge_next(lemma, sent[i+1][0].lower())
+                if pos_ok and next_ok:
+                    sent[i][3] = 'S\t1\t' + dictionary[token]
 
             
 def read_dictionary():
@@ -131,7 +147,25 @@ def read_sentences(tokens):
     if len(sentence) > 0:
         sentences.append(sentence)
     return sentences
-    
+
+def read_dependencies(lines):
+    all_deps = []
+    sentence_deps = []
+    for line in lines:
+        trimmed = line.strip()
+        if len(trimmed) == 0:
+            if len(sentence_deps) > 0:
+                all_deps.append(sentence_deps)
+                sentence_deps = []
+            continue
+        if trimmed == 'NO DEPS':
+            all_deps.append([])
+            continue
+        sentence_deps.append(trimmed.split('\t'))
+    if len(sentence_deps) > 0:
+        all_deps.append(sentence_deps)
+    return all_deps
+
 
 def print_tagged(sentences):
     for sentence in sentences:
@@ -140,15 +174,14 @@ def print_tagged(sentences):
         print
 
 if __name__=="__main__":
-    inputfile = codecs.open(sys.argv[1],encoding='utf-8')
-    tokens = inputfile.readlines()
-    #print tokens
+    tokens_file = codecs.open(sys.argv[1],encoding='utf-8')
+    tokens = tokens_file.readlines()
     sentences = read_sentences(tokens)
-    #print sentences
-    #print dictionary
+
+    deps_file = codecs.open(sys.argv[2],encoding='utf-8')
+    all_deps = read_dependencies(deps_file.readlines())
     read_dictionary()
-    #print len(dictionary)
-    #print len(multiword_dictionary)
+
     find_hedges(sentences)
     print_tagged(sentences)
     

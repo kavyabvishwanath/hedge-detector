@@ -10,7 +10,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.uima.jcas.cas.FSArray;
 import org.apache.uima.jcas.JCas;
+import org.cleartk.syntax.dependency.type.DependencyNode;
+import org.cleartk.syntax.dependency.type.DependencyRelation;
 import org.cleartk.token.type.Sentence;
 import org.cleartk.token.type.Token;
 import org.uimafit.util.JCasUtil;
@@ -36,26 +39,51 @@ public class HedgeClassifier {
      */
     private void writeFile(JCas jCas, List<Sentence> sentences) {
         try {
-            FileWriter writer = new FileWriter(new File("hedgeClassifier/temp_hedge.txt"));
+            FileWriter tokensWriter = new FileWriter(new File("hedgeClassifier/temp_hedge_tokens.txt"));
+            FileWriter depsWriter = new FileWriter(new File("hedgeClassifier/temp_hedge_deps.txt"));
             for (Sentence sentence : sentences) {
+
+                List<DependencyNode> nodes = JCasUtil.selectCovered(jCas, DependencyNode.class, sentence);
+                if (nodes.size() == 0) // if there are no dependencies, print dummy so token and dependency sentence indices match
+                    depsWriter.append("NO DEPS\n");
+                for (DependencyNode node : nodes) {
+                    FSArray fsarray = node.getChildRelations();
+                    for (int i = 0; i < fsarray.size(); i++) {
+                        DependencyRelation dependency = (DependencyRelation) fsarray.get(i);
+                        DependencyNode child = dependency.getChild();
+                        Token parentToken = JCasUtil.selectCovered(jCas, Token.class, node).get(0);
+                        Token childToken = JCasUtil.selectCovered(jCas, Token.class, child).get(0);
+                        depsWriter.append(dependency.getRelation());
+                        depsWriter.append('\t');
+                        depsWriter.append(parentToken.getLemma());
+                        depsWriter.append('\t');
+                        depsWriter.append(childToken.getLemma());
+                        depsWriter.append('\n');
+                    }
+                }
+                depsWriter.append("\n\n");
+
                 List<Token> tokens = JCasUtil.selectCovered(jCas, Token.class, sentence);
                 for (Token token : tokens) {
                     if (token.getCoveredText().length() == 1 && Character.isISOControl(token.getCoveredText().charAt(0)))
                         //Had some issues with ISO character, so replace them in the txt file. The original characters
                         //are put back after running the classifier.
-                        writer.append("ISO");
+                        tokensWriter.append("ISO");
                     else
-                        writer.append(token.getCoveredText());
-                    writer.append('\t');
-                    writer.append(token.getPos());
-                    writer.append('\t');
-                    writer.append(token.getLemma());
-                    writer.append('\n');
+                        tokensWriter.append(token.getCoveredText());
+                    tokensWriter.append('\t');
+                    tokensWriter.append(token.getPos());
+                    tokensWriter.append('\t');
+                    tokensWriter.append(token.getLemma());
+                    tokensWriter.append('\n');
                 }
-                writer.append("\n\n");
+                tokensWriter.append("\n\n");
+
             }
-            writer.flush();
-            writer.close();
+            tokensWriter.flush();
+            tokensWriter.close();
+            depsWriter.flush();
+            depsWriter.close();
         } catch (IOException ioe) {
             ioe.printStackTrace();
         }
@@ -77,7 +105,8 @@ public class HedgeClassifier {
 
         try {
             //run classifier on temp_hedge.txt
-            ProcessBuilder pb = new ProcessBuilder("python", "hedgeClassifier/classify.py", "hedgeClassifier/temp_hedge.txt");
+            ProcessBuilder pb = new ProcessBuilder("python", "hedgeClassifier/classify.py",
+                "hedgeClassifier/temp_hedge_tokens.txt", "hedgeClassifier/temp_hedge_deps.txt");
             Process p = pb.start();
             p.waitFor();
 

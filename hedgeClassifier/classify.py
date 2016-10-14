@@ -59,9 +59,34 @@ def check_hedge_next(lemma, next):
     #    return next != 'out'
     return True
 
+def check_hedge_deps(lemma, dependencies):
+    if lemma == 'appear' or lemma == 'assume':
+        for relation, head, dependent in dependencies:
+            if head == lemma and (relation == 'xcomp' or relation == 'ccomp'):
+                return True
+        return False
+    if lemma == 'believe':
+        neg = False # if "believe" is negated
+        aux = False # if "believe" in this sentence has a modal as a dependent
+        sub_clause = False
+        for relation, head, dependent in dependencies:
+            if head == lemma:
+                if relation == 'aux': # ASK: should we limit the modal? is "i wouldn't believe" a hedge??
+                    aux = True
+                elif relation == 'neg':
+                    neg = True
+                elif relation == 'ccomp' or relation == 'xcomp':
+                    sub_clause = True
+        # 'believe' is only a hedge if: it has a subordinate clause, and isn't used with a negated modal
+        return sub_clause and not (aux and neg)
 
-def find_hedges(sentences):
-    for sent in sentences:
+    return True
+
+def find_hedges(sentences, all_deps):
+    #for sent in sentences:
+    for s in range(len(sentences)):
+        sent = sentences[s]
+        sent_deps = all_deps[s]
         #if sent[len(sent) - 1] != '?':
         for i in range(len(sent)):
             token = sent[i][0].lower()
@@ -80,10 +105,11 @@ def find_hedges(sentences):
                             sent[i+k][3] = 'M' + str(k) + '\t1\t' + hedge[j][1]
             if token in dictionary and sent[i][3] == '_':
                 pos_ok = check_hedge_pos(token, pos)
+                deps_ok = check_hedge_deps(lemma, sent_deps)
                 next_ok = True
                 if i + 1 < len(sent):
                     next_ok = check_hedge_next(lemma, sent[i+1][0].lower())
-                if pos_ok and next_ok:
+                if pos_ok and next_ok and deps_ok:
                     sent[i][3] = 'S\t1\t' + dictionary[token]
 
             
@@ -182,6 +208,6 @@ if __name__=="__main__":
     all_deps = read_dependencies(deps_file.readlines())
     read_dictionary()
 
-    find_hedges(sentences)
+    find_hedges(sentences, all_deps)
     print_tagged(sentences)
     

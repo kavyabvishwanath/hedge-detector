@@ -59,19 +59,20 @@ def check_hedge_next(lemma, next):
     #    return next != 'out'
     return True
 
-def check_hedge_deps(lemma, dependencies):
-    if lemma == 'appear' or lemma == 'assume':
-        for relation, head, dependent in dependencies:
-            if head == lemma and (relation == 'xcomp' or relation == 'ccomp'):
-                return True
+def check_hedge_deps(lemma, begin_ind, dependencies):
+    if lemma == 'appear' or lemma == 'assume' or lemma == 'consider':
+        for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
+            if head_ind == begin_ind:
+                if relation == 'xcomp' or relation == 'ccomp':
+                    return True
         return False
     if lemma == 'believe':
-        neg = False # if "believe" is negated
-        aux = False # if "believe" in this sentence has a modal as a dependent
+        neg = False # if 'believe' is negated
+        aux = False # if 'believe' in this sentence has a modal as a dependent (excluding 'do')
         sub_clause = False
-        for relation, head, dependent in dependencies:
-            if head == lemma:
-                if relation == 'aux': # ASK: should we limit the modal? is "i wouldn't believe" a hedge??
+        for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
+            if head_ind == begin_ind:
+                if relation == 'aux' and dependent != 'do':
                     aux = True
                 elif relation == 'neg':
                     neg = True
@@ -79,6 +80,68 @@ def check_hedge_deps(lemma, dependencies):
                     sub_clause = True
         # 'believe' is only a hedge if: it has a subordinate clause, and isn't used with a negated modal
         return sub_clause and not (aux and neg)
+    if lemma == 'doubt':
+        for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
+            if head_ind == begin_ind:
+                if relation == 'neg':
+                    return False
+                elif relation == 'case' and (dependent == 'beyond' or dependent == 'without'):
+                    return False
+        return True
+    if lemma == 'fairly':
+        for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
+            if dependent_ind == begin_ind:
+                if relation == 'advmod' and head_pos[0] == 'v':
+                    return False
+        return True
+    if lemma == 'find':
+        for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
+            if head_ind == begin_ind:
+                if dependent == 'out':
+                    return False
+                if relation == 'dobj': # this is a little questionable
+                    return False
+        return True
+    if lemma == 'general':
+        for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
+            if head_ind == begin_ind:
+                if relation == 'case' and dependent == 'in':
+                    return True
+                elif head_pos[0] == 'n':
+                    return False
+            # more cases
+        return True
+    if lemma == 'impression':
+        for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
+            if head_ind == begin_ind:
+                if relation == 'poss':
+                    return True
+                elif relation == 'case' and dependent == 'under':
+                    return True
+            elif dependent_ind == begin_ind:
+                if relation == 'dobj' and (head == 'get' or head == 'have'):
+                    # dobj(have, impression) is questionable - eg "I have a good Dylan impression"/"She had a profound impression on me"
+                    # Might be better to look for dobj(impression, x) + ccomp(x, y) here - maybe specifically w/ 'that' as complementizer
+                    return True
+        return False
+    if lemma == 'kinda':
+        for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
+            if head_ind == begin_ind:
+                # 'kinda' should only be a hedge if it's an adverb, but the pos tagger tends to get it wrong, so this might be a better approach
+                if dependent_pos[0] == 'N':
+                    return False
+        return True
+    if lemma == 'know':
+        neg = False # if 'know' is negated
+        advcl = False # if 'know' is modified by an adverbial clause, usually headed by 'if'
+        for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
+            # This is possibly excluding sentences like "I don't know that we should go", but those seem less common
+            if head_ind == begin_ind:
+                if relation == 'neg':
+                    neg = True
+                elif relation == 'advcl':
+                    advcl = True
+        return neg and advcl
 
     return True
 
@@ -92,25 +155,26 @@ def find_hedges(sentences, all_deps):
             token = sent[i][0].lower()
             pos = sent[i][1].lower()
             lemma = sent[i][2].lower()
+            begin_ind = sent[i][3]
             # print lemma
             if token in multiword_dictionary:
                 hedge = multiword_dictionary[token]
                 for j in range(len(hedge)):
                     match = True
                     for k in range(len(hedge[j][2])):
-                        if i + k >= len(sent) or sent[i + k][0].lower() != hedge[j][2][k] or sent[i+k][3] != '_':
+                        if i + k >= len(sent) or sent[i + k][0].lower() != hedge[j][2][k] or sent[i+k][4] != '_':
                             match = False
                     if match:
                         for k in range(len(hedge[j][2])):
-                            sent[i+k][3] = 'M' + str(k) + '\t1\t' + hedge[j][1]
-            if token in dictionary and sent[i][3] == '_':
+                            sent[i+k][4] = 'M' + str(k) + '\t1\t' + hedge[j][1]
+            if token in dictionary and sent[i][4] == '_':
                 pos_ok = check_hedge_pos(token, pos)
-                deps_ok = check_hedge_deps(lemma, sent_deps)
+                deps_ok = check_hedge_deps(lemma, begin_ind, sent_deps)
                 next_ok = True
                 if i + 1 < len(sent):
                     next_ok = check_hedge_next(lemma, sent[i+1][0].lower())
                 if pos_ok and next_ok and deps_ok:
-                    sent[i][3] = 'S\t1\t' + dictionary[token]
+                    sent[i][4] = 'S\t1\t' + dictionary[token]
 
             
 def read_dictionary():
@@ -161,15 +225,12 @@ def read_sentences(tokens):
                 sentences.append(sentence)
                 sentence = []
         else:
-            trimmed_split = trimmed.split('\t')
-            word = trimmed_split[0]
-            tag = trimmed_split[1]
-            lemma = trimmed_split[2]
+            word, tag, lemma, begin_ind = trimmed.split('\t')
             #print word
             #print tag
             #lemma = wordnet_lemmatizer.lemmatize(word,tag[0].lower()) if tag[0].lower() in ['a','n','v'] else wordnet_lemmatizer.lemmatize(word)
             #print lemma
-            sentence.append([word,tag,lemma,'_'])
+            sentence.append([word, tag, lemma, int(begin_ind), '_'])
     if len(sentence) > 0:
         sentences.append(sentence)
     return sentences
@@ -187,7 +248,9 @@ def read_dependencies(lines):
         if trimmed == 'NO DEPS':
             all_deps.append([])
             continue
-        sentence_deps.append(trimmed.split('\t'))
+        relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos = trimmed.split('\t')
+        sentence_deps.append([relation, head.lower(), dependent.lower(), int(head_ind), int(dependent_ind), 
+            head_pos.lower(), dependent_pos.lower()])
     if len(sentence_deps) > 0:
         all_deps.append(sentence_deps)
     return all_deps
@@ -196,7 +259,7 @@ def read_dependencies(lines):
 def print_tagged(sentences):
     for sentence in sentences:
         for token in sentence:
-            print token[0] + '\t' + token[3]
+            print token[0] + '\t' + token[4]
         print
 
 if __name__=="__main__":

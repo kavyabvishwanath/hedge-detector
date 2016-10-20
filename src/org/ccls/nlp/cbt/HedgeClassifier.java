@@ -58,6 +58,14 @@ public class HedgeClassifier {
                         depsWriter.append(parentToken.getLemma());
                         depsWriter.append('\t');
                         depsWriter.append(childToken.getLemma());
+                        depsWriter.append('\t');
+                        depsWriter.append(Integer.toString(parentToken.getBegin()));
+                        depsWriter.append('\t');
+                        depsWriter.append(Integer.toString(childToken.getBegin()));
+                        depsWriter.append('\t');
+                        depsWriter.append(parentToken.getPos());
+                        depsWriter.append('\t');
+                        depsWriter.append(childToken.getPos());
                         depsWriter.append('\n');
                     }
                 }
@@ -75,6 +83,9 @@ public class HedgeClassifier {
                     tokensWriter.append(token.getPos());
                     tokensWriter.append('\t');
                     tokensWriter.append(token.getLemma());
+                    tokensWriter.append('\t');
+                    //print beginning index of this token, so we can match it in dependencies
+                    tokensWriter.append(Integer.toString(token.getBegin()));
                     tokensWriter.append('\n');
                 }
                 tokensWriter.append("\n\n");
@@ -101,7 +112,7 @@ public class HedgeClassifier {
         List<Map<Token, HedgeInfo>> hedgeFeatures = new ArrayList<>();
         List<Sentence> sentences = new ArrayList<>(JCasUtil.select(jCas, Sentence.class));
 
-        writeFile(jCas, sentences);//writes temp_hedge.txt
+        writeFile(jCas, sentences);//writes temp_hedge_tokens.txt, temp_hedge_deps.txt
 
         try {
             //run classifier on temp_hedge.txt

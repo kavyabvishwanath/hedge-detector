@@ -99,7 +99,7 @@ def check_hedge_deps(lemma, begin_ind, dependencies):
             if head_ind == begin_ind:
                 if dependent == 'out':
                     return False
-                if relation == 'dobj': # this is a little questionable
+                if relation == 'dobj': # this is a little questionable - maybe do lower confidence instead of just 'no'
                     return False
         return True
     if lemma == 'general':
@@ -124,7 +124,7 @@ def check_hedge_deps(lemma, begin_ind, dependencies):
                     # Might be better to look for dobj(impression, x) + ccomp(x, y) here - maybe specifically w/ 'that' as complementizer
                     return True
         return False
-    if lemma == 'kinda':
+    if lemma == 'kinda' or lemma == 'likely' or lemma == 'unlikely':
         for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
             if head_ind == begin_ind:
                 # 'kinda' should only be a hedge if it's an adverb, but the pos tagger tends to get it wrong, so this might be a better approach
@@ -142,6 +142,70 @@ def check_hedge_deps(lemma, begin_ind, dependencies):
                 elif relation == 'advcl':
                     advcl = True
         return neg and advcl
+    if lemma == 'like':
+        for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
+            if head_ind == begin_ind:
+                if relation == 'cop' and dependent == 'be':
+                    return True
+            elif dependent_ind == begin_ind:
+                if relation == 'mark':
+                    return False
+        return True
+    if lemma == 'often':
+        for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
+            if head_ind == begin_ind:
+                if relation == 'advmod' and (dependent == 'more' or dependent == 'less' or dependent == 'as'):
+                    return False
+        return True
+    if lemma == 'partial':
+        for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
+            if head_ind == begin_ind:
+                if relation == 'nsubj':
+                    return False
+        return True
+    if lemma == 'pretty':
+        for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
+            # The following checks are essentially proxies for 'is pretty an adjective' - POS tagging usually fails that though
+            if head_ind == begin_ind:
+                if relation == 'cop':
+                    return False
+            elif dependent_ind == begin_ind:
+                if head_pos[0] == 'n' and (relation == 'advmod' or relation == 'amod'):
+                    # Stanford CoreNLP is not aware that adverbs cannot modify nouns
+                    return False
+        return True
+    if lemma == 'rather':
+        for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
+            if head_ind == begin_ind:
+                if relation == 'mwe' and dependent == 'then':
+                    return False
+            # still need to do a check for modifying adverb/adjective vs. verb
+        return True
+    if lemma == 'really':
+        for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
+            if head_ind == begin_ind:
+                # This is incomplete (sometimes 'really' is still not a hedge when negated, but better than nothing
+                if relation == 'neg':
+                    return True
+        return False
+    if lemma == 'roughly':
+        for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
+            if dependent_ind == begin_ind:
+                if relation == 'advmod' and head_pos[0] == 'v':
+                    return False
+        return True
+    if lemma == 'sure':
+        for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
+            if head_ind == begin_ind:
+                if relation == 'neg':
+                    return True
+        return False
+    if lemma == 'tend':
+        for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
+            if head_ind == begin_ind:
+                if relation == 'xcomp':
+                    return True
+        return False
 
     return True
 

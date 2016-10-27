@@ -177,7 +177,7 @@ def check_hedge_deps(lemma, begin_ind, dependencies):
     if lemma == 'rather':
         for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
             if head_ind == begin_ind:
-                if relation == 'mwe' and dependent == 'then':
+                if relation == 'mwe' and dependent == 'than':
                     return False
             # still need to do a check for modifying adverb/adjective vs. verb
         return True

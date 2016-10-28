@@ -60,12 +60,14 @@ def check_hedge_next(lemma, next):
     return True
 
 def check_hedge_deps(lemma, begin_ind, dependencies):
+    """
     if lemma == 'appear' or lemma == 'assume' or lemma == 'consider':
         for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
             if head_ind == begin_ind:
                 if relation == 'xcomp' or relation == 'ccomp':
                     return True
         return False
+    """
     if lemma == 'believe':
         neg = False # if 'believe' is negated
         aux = False # if 'believe' in this sentence has a modal as a dependent (excluding 'do')

@@ -53,10 +53,12 @@ def check_hedge_pos(token, pos):
     return True
     
 def check_hedge_next(lemma, next):
-    #if token == 'supposed':
-    #    return next != 'to'
-    #if lemma == 'find':
-    #    return next != 'out'
+    """
+    if lemma == 'suppose':
+        return next != 'to'
+    if lemma == 'find':
+        return next != 'out'
+    """
     return True
 
 def check_hedge_deps(lemma, begin_ind, dependencies):
@@ -177,12 +179,27 @@ def check_hedge_deps(lemma, begin_ind, dependencies):
                     return False
         return True
     if lemma == 'rather':
+        rather_verbs = set() # verbs modified by rather
+        advmod_verbs = set() # verbs modified by adverbs other than rather
         for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
             if head_ind == begin_ind:
+                # "Rather than" is never a hedge
                 if relation == 'mwe' and dependent == 'than':
                     return False
-            # still need to do a check for modifying adverb/adjective vs. verb
-        return True
+            elif dependent_ind == begin_ind:
+                if relation == 'advmod':
+                    # rather modifying an adjective is always a hedge ("His behavior is rather strange")
+                    if head_pos[0] == 'j':
+                        return True
+                    if head_pos[0] == 'v':
+                        rather_verbs.add(head_ind)
+            elif relation == 'advmod': # look for dependencies of verbs modified by non-rather adverbs
+                if head_pos[0] == 'v':
+                    advmod_verbs.add(head_ind)
+        # If rather modifies a verb in the dependencies, it is only a hedge if there is also an adverb modifying
+        # that verb. ("She's acting rather strangely" -> advmod(act, rather) + advmod(act, strangely) = hedge,
+        # vs "She'd rather go to the store" -> advmod(go, rather) = not hedge)
+        return len(rather_verbs & advmod_verbs) != 0
     if lemma == 'really':
         for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
             if head_ind == begin_ind:
@@ -196,6 +213,16 @@ def check_hedge_deps(lemma, begin_ind, dependencies):
                 if relation == 'advmod' and head_pos[0] == 'v':
                     return False
         return True
+    if lemma == 'suppose':
+        to_deps = set()
+        supposed_deps = set()
+        for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
+            if relation == 'mark' and dependent == 'to':
+                to_deps.add(head_ind)
+            elif head_ind == begin_ind:
+                supposed_deps.add(dependent_ind)
+        # 'supposed' is not a hedge if used as 'supposed to', meaning the intersection of to_deps and supposed_deps == 0
+        return len(to_deps & supposed_deps) == 0
     if lemma == 'sure':
         for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
             if head_ind == begin_ind:
@@ -208,6 +235,18 @@ def check_hedge_deps(lemma, begin_ind, dependencies):
                 if relation == 'xcomp':
                     return True
         return False
+    if lemma == 'totally': # "necessarily" was implemented with the same logic but it hurt
+        neg_deps = set() # negated tokens
+        lemma_deps = set() # tokens modified by totally
+        for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
+            if relation == 'neg':
+                if head_ind == begin_ind:
+                    return True # This will probably never happen
+                neg_deps.add(head_ind)
+            elif dependent_ind == begin_ind:
+                lemma_deps.add(head_ind)
+        # Totally is only a hedge if the word it modifies is also negated (eg 'not totally true')
+        return len(neg_deps & lemma_deps) != 0
 
     return True
 
@@ -233,14 +272,17 @@ def find_hedges(sentences, all_deps):
                     if match:
                         for k in range(len(hedge[j][2])):
                             sent[i+k][4] = 'M' + str(k) + '\t1\t' + hedge[j][1]
-            if token in dictionary and sent[i][4] == '_':
+            if lemma in dictionary and sent[i][4] == '_':
                 pos_ok = check_hedge_pos(token, pos)
                 deps_ok = check_hedge_deps(lemma, begin_ind, sent_deps)
                 next_ok = True
                 if i + 1 < len(sent):
                     next_ok = check_hedge_next(lemma, sent[i+1][0].lower())
                 if pos_ok and next_ok and deps_ok:
-                    sent[i][4] = 'S\t1\t' + dictionary[token]
+                    if (isinstance(deps_ok, float)):
+                        sent[i][4] = 'S\t' + str(deps_ok) + '\t' + dictionary[lemma]
+                    else:
+                        sent[i][4] = 'S\t1\t' + dictionary[lemma]
 
             
 def read_dictionary():

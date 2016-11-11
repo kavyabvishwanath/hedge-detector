@@ -62,6 +62,14 @@ def check_hedge_next(lemma, next):
     return True
 
 def check_hedge_deps(lemma, begin_ind, dependencies):
+    """
+    if lemma == 'about':
+        for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
+            if dependent_ind == begin_ind:
+                if relation == 'quantmod':
+                    return True
+        return False
+    """
     if lemma == 'appear' or lemma == 'assume' or lemma == 'consider':
         for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
             if head_ind == begin_ind:
@@ -233,6 +241,15 @@ def check_hedge_deps(lemma, begin_ind, dependencies):
                 if relation == 'xcomp':
                     return True
         return False
+    """
+    if lemma == 'think':
+        for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
+            if head_ind == begin_ind:
+                if ((relation == 'prep_about' or relation == 'prep_of') and
+                    (dependent_pos[0] == 'n' or dependent_pos[0] == 'prp')):
+                    return False
+        return True
+    """
     if lemma == 'totally': # "necessarily" was implemented with the same logic but it hurt
         neg_deps = set() # negated tokens
         lemma_deps = set() # tokens modified by totally

@@ -90,6 +90,18 @@ def check_hedge_deps(lemma, begin_ind, dependencies):
                     sub_clause = True
         # 'believe' is only a hedge if: it has a subordinate clause, and isn't used with a negated modal
         return sub_clause and not (aux and neg)
+    if lemma == 'completely' or lemma == 'totally': # "necessarily" was implemented with the same logic but it hurt
+        neg_deps = set() # negated tokens
+        lemma_deps = set() # tokens modified by completely/totally
+        for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
+            if relation == 'neg':
+                if head_ind == begin_ind:
+                    return True # This will probably never happen
+                neg_deps.add(head_ind)
+            elif dependent_ind == begin_ind:
+                lemma_deps.add(head_ind)
+        # Completely/totally is only a hedge if the word it modifies is also negated (eg 'not totally true')
+        return len(neg_deps & lemma_deps) != 0
     if lemma == 'doubt':
         for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
             if head_ind == begin_ind:
@@ -104,6 +116,16 @@ def check_hedge_deps(lemma, begin_ind, dependencies):
                 if relation == 'advmod' and head_pos[0] == 'v':
                     return False
         return True
+    """
+    if lemma == 'feel':
+        for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
+            if head_ind == begin_ind:
+                if relation == 'dobj':
+                    return False
+                elif relation == 'xcomp' and dependent_pos[0] == 'j':
+                    return False
+        return True
+    """
     if lemma == 'find':
         for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
             if head_ind == begin_ind:
@@ -241,24 +263,14 @@ def check_hedge_deps(lemma, begin_ind, dependencies):
                 if relation == 'xcomp':
                     return True
         return False
+    """
     if lemma == 'think':
         for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
             if head_ind == begin_ind:
                 if relation == 'prep_of' and (dependent_pos[0] == 'n' or dependent_pos == 'prp'):
                     return False
         return True
-    if lemma == 'totally': # "necessarily" was implemented with the same logic but it hurt
-        neg_deps = set() # negated tokens
-        lemma_deps = set() # tokens modified by totally
-        for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
-            if relation == 'neg':
-                if head_ind == begin_ind:
-                    return True # This will probably never happen
-                neg_deps.add(head_ind)
-            elif dependent_ind == begin_ind:
-                lemma_deps.add(head_ind)
-        # Totally is only a hedge if the word it modifies is also negated (eg 'not totally true')
-        return len(neg_deps & lemma_deps) != 0
+    """
 
     return True
 

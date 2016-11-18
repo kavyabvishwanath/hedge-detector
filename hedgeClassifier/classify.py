@@ -36,21 +36,8 @@ def check_hedge_pos(token, pos):
         return pos[0] != 'n'
     if token == 'fair':
         return pos[0] != 'n'
-    """
-    # Seth's additions
-    if token == 'around':
-        return pos == 'in'
-    if token == 'kinda':
-        return pos[:2] == 'rb'
-    if token == 'likely':
-        return pos[:2] == 'rb' # this could be weird - not sure about "That is likely to happen."
-    if token == 'may':
-        return pos[0] != 'n' # not sufficient - just excludes month
-    if token == 'might':
-        return pos[0] != 'n' # not sufficient - just excludes might==strength
-    if token == 'pretty':
-        return pos[0] != 'j'
-    """
+    if token == 'most':
+        return pos != 'rbs'
 
     return True
     
@@ -95,7 +82,8 @@ def check_hedge_deps(lemma, begin_ind, dependencies):
                     sub_clause = True
         # 'believe' is only a hedge if: it has a subordinate clause, and isn't used with a negated modal
         return sub_clause and not (aux and neg)
-    if lemma == 'completely' or lemma == 'totally': # "necessarily" was implemented with the same logic but it hurt
+    if lemma == 'completely' or lemma == 'totally':
+        # "necessarily", "possibly, "really" were implemented with the same logic but it hurt
         neg_deps = set() # negated tokens
         lemma_deps = set() # tokens modified by completely/totally
         for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
@@ -163,21 +151,14 @@ def check_hedge_deps(lemma, begin_ind, dependencies):
         return True
     """
     if lemma == 'guess':
-        # This is probably incorrectly excluding sentences like 'If I had to guess, I would say...'
         for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
-            predicate = -1 # The beginning index of the predicate of 'guess' if it is a noun
             if head_ind == begin_ind:
-                if relation == 'ccomp' and head_pos[0] == 'v':
-                    return True
-            # The following two blocks cover sentences like 'My guess is we won't see them again.'
-            # Consider: maybe get sentences like 'We'll never see them again, is my guess.' ?
-            elif dependent_ind == begin_ind:
-                if relation == 'nsubj' and dependent_pos[0] == 'n':
-                    predicate = head_ind
-            elif head_ind == predicate:
-                if relation == 'ccomp':
-                    return True
-        return False
+                if relation == 'dobj':
+                    return False
+            if dependent_ind == begin_ind:
+                if relation == 'dobj' and head == 'take':
+                    return False
+        return True
     """
     """
     if lemma == 'hear':
@@ -190,7 +171,7 @@ def check_hedge_deps(lemma, begin_ind, dependencies):
         return False
     """
     if lemma == 'imagine':
-        # This excludes many, but not all, of the non-hedges (see: "He imagined the world was ending")
+        # This excludes many, but not all, of the non-hedges (eg "He imagined the world was ending" is still incorrectly included)
         for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
             if head_ind == begin_ind:
                 if relation == 'ccomp':
@@ -209,13 +190,6 @@ def check_hedge_deps(lemma, begin_ind, dependencies):
                     # Might be better to look for dobj(impression, x) + ccomp(x, y) here - maybe specifically w/ 'that' as complementizer
                     return True
         return False
-    if lemma == 'kinda' or lemma == 'likely' or lemma == 'unlikely':
-        for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
-            if head_ind == begin_ind:
-                # 'kinda' should only be a hedge if it's an adverb, but the pos tagger tends to get it wrong, so this might be a better approach
-                if dependent_pos[0] == 'N':
-                    return False
-        return True
     if lemma == 'know':
         neg = False # if 'know' is negated
         advcl = False # if 'know' is modified by an adverbial clause, usually headed by 'if'
@@ -229,13 +203,47 @@ def check_hedge_deps(lemma, begin_ind, dependencies):
         return neg and advcl
     if lemma == 'like':
         for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
-            if head_ind == begin_ind:
-                if relation == 'cop' and dependent == 'be':
-                    return True
-            elif dependent_ind == begin_ind:
+            #if head_ind == begin_ind:
+                #if relation == 'cop' and dependent == 'be':
+                    #return True
+            if dependent_ind == begin_ind:
                 if relation == 'mark':
                     return False
+            #if relation == 'prep_like':
+                #if head_pos[0] == 'n':
+                    #return False
         return True
+    if lemma == 'likely' or lemma == 'unlikely':
+        for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
+            if dependent_ind == begin_ind:
+                if relation == 'amod' and head_pos[0] == 'N':
+                    return False
+        return True
+    """
+    if lemma == 'much':
+        much_deps = set() # words modified by 'much'
+        neg_deps = set() # negated words
+        much_modifiers = ['as', 'how', 'so', 'too', 'very']
+        much_modified = False
+        for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
+            if head_ind == begin_ind:
+                if relation == 'neg':
+                    return True
+                if dependent in much_modifiers:
+                    much_modified = True
+            if dependent_ind == begin_ind:
+                much_deps.add(head_ind)
+            else:
+                if relation == 'neg':
+                    neg_deps.add(head_ind)
+                elif relation == 'prep_without':
+                    neg_deps.add(dependent_ind)
+        # If much is negated (ie, the word it modifies is negated), it is a hedge.
+        if much_deps & neg_deps:
+            return True
+        # If it's not negated, and it's modified by a word modifying its quantity/degree, it is not a hedge.
+        return not much_modified
+    """
     if lemma == 'often':
         for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
             if head_ind == begin_ind:
@@ -248,6 +256,20 @@ def check_hedge_deps(lemma, begin_ind, dependencies):
                 if relation == 'nsubj':
                     return False
         return True
+    if lemma == 'possible':
+        for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
+            if head_ind == begin_ind:
+                if relation == 'neg':
+                    return False
+        return True
+    """
+    if lemma == 'practically':
+        for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
+            if dependent_ind == begin_ind:
+                if relation == 'advmod' and head_pos[0] == 'v':
+                    return False
+        return True
+    """
     if lemma == 'pretty':
         for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
             # The following checks are essentially proxies for 'is pretty an adjective' - POS tagging usually fails that though
@@ -279,7 +301,7 @@ def check_hedge_deps(lemma, begin_ind, dependencies):
         # that verb. ("She's acting rather strangely" -> advmod(act, rather) + advmod(act, strangely) = hedge,
         # vs "She'd rather go to the store" -> advmod(go, rather) = not hedge)
         return len(rather_verbs & advmod_verbs) != 0
-
+    """
     if lemma == 'really':
         for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
             if head_ind == begin_ind:
@@ -287,6 +309,7 @@ def check_hedge_deps(lemma, begin_ind, dependencies):
                 if relation == 'neg':
                     return True
         return False
+    """
     if lemma == 'roughly':
         for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
             if dependent_ind == begin_ind:
@@ -319,14 +342,6 @@ def check_hedge_deps(lemma, begin_ind, dependencies):
                 if relation == 'xcomp':
                     return True
         return False
-    """
-    if lemma == 'think':
-        for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
-            if head_ind == begin_ind:
-                if relation == 'prep_of' and (dependent_pos[0] == 'n' or dependent_pos == 'prp'):
-                    return False
-        return True
-    """
 
     return True
 

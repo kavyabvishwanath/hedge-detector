@@ -34,6 +34,8 @@ def check_hedge_pos(token, pos):
         return pos[0] != 'i'
     if token == 'might' or token == 'may':
         return pos[0] != 'n'
+    if token == 'fair':
+        return pos[0] != 'n'
     """
     # Seth's additions
     if token == 'around':
@@ -59,10 +61,13 @@ def check_hedge_next(lemma, next):
     if lemma == 'find':
         return next != 'out'
     """
+    if lemma == 'rather':
+        return next != 'than'
     return True
 
 def check_hedge_deps(lemma, begin_ind, dependencies):
     """
+    # I think the quantmod dependency is correctly parsed far too infrequently for this rule to help.
     if lemma == 'about':
         for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
             if dependent_ind == begin_ind:
@@ -117,14 +122,23 @@ def check_hedge_deps(lemma, begin_ind, dependencies):
                     return False
         return True
     """
+    # Two opposing approaches to detect 'feel' - mixed results - need to test each when NA can be excluded.
     if lemma == 'feel':
         for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
             if head_ind == begin_ind:
                 if relation == 'dobj':
                     return False
-                elif relation == 'xcomp' and dependent_pos[0] == 'j':
+                if relation == 'acomp':
+                    return False
+                elif relation == 'prep_like':
                     return False
         return True
+    if lemma == 'feel':
+        for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
+            if head_ind == begin_ind:
+                if relation == 'ccomp' or relation == 'advcl':
+                    return True
+        return False
     """
     if lemma == 'find':
         for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
@@ -141,16 +155,55 @@ def check_hedge_deps(lemma, begin_ind, dependencies):
                     return True
                 elif head_pos[0] == 'n':
                     return False
+            elif dependent_ind == begin_ind:
+                # For some reason, this is how CoreNLP 3.3.0 categorizes a lot of uses of 'in general'
+                if relation == 'prep_in':
+                    return True
             # more cases
         return True
+    """
+    if lemma == 'guess':
+        # This is probably incorrectly excluding sentences like 'If I had to guess, I would say...'
+        for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
+            predicate = -1 # The beginning index of the predicate of 'guess' if it is a noun
+            if head_ind == begin_ind:
+                if relation == 'ccomp' and head_pos[0] == 'v':
+                    return True
+            # The following two blocks cover sentences like 'My guess is we won't see them again.'
+            # Consider: maybe get sentences like 'We'll never see them again, is my guess.' ?
+            elif dependent_ind == begin_ind:
+                if relation == 'nsubj' and dependent_pos[0] == 'n':
+                    predicate = head_ind
+            elif head_ind == predicate:
+                if relation == 'ccomp':
+                    return True
+        return False
+    """
+    """
+    if lemma == 'hear':
+        for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
+            if head_ind == begin_ind:
+                if relation == 'ccomp':
+                    return True
+                elif relation == 'dobj' and dependent == 'what':
+                    return True
+        return False
+    """
+    if lemma == 'imagine':
+        # This excludes many, but not all, of the non-hedges (see: "He imagined the world was ending")
+        for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
+            if head_ind == begin_ind:
+                if relation == 'ccomp':
+                    return True
+        return False
     if lemma == 'impression':
         for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
             if head_ind == begin_ind:
                 if relation == 'poss':
                     return True
-                elif relation == 'case' and dependent == 'under':
-                    return True
             elif dependent_ind == begin_ind:
+                if relation == 'prep_under':
+                    return True
                 if relation == 'dobj' and (head == 'get' or head == 'have'):
                     # dobj(have, impression) is questionable - eg "I have a good Dylan impression"/"She had a profound impression on me"
                     # Might be better to look for dobj(impression, x) + ccomp(x, y) here - maybe specifically w/ 'that' as complementizer
@@ -207,27 +260,26 @@ def check_hedge_deps(lemma, begin_ind, dependencies):
                     return False
         return True
     if lemma == 'rather':
+        # "Rather than" should be excluded by check_hedge_next.
         rather_verbs = set() # verbs modified by rather
         advmod_verbs = set() # verbs modified by adverbs other than rather
         for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
-            if head_ind == begin_ind:
-                # "Rather than" is never a hedge
-                if relation == 'mwe' and dependent == 'than':
-                    return False
-            elif dependent_ind == begin_ind:
+            if dependent_ind == begin_ind:
                 if relation == 'advmod':
-                    # rather modifying an adjective is always a hedge ("His behavior is rather strange")
                     if head_pos[0] == 'j':
+                        # rather modifying an adjective is always a hedge ("His behavior is rather strange")
                         return True
                     if head_pos[0] == 'v':
                         rather_verbs.add(head_ind)
             elif relation == 'advmod': # look for dependencies of verbs modified by non-rather adverbs
                 if head_pos[0] == 'v':
                     advmod_verbs.add(head_ind)
+
         # If rather modifies a verb in the dependencies, it is only a hedge if there is also an adverb modifying
         # that verb. ("She's acting rather strangely" -> advmod(act, rather) + advmod(act, strangely) = hedge,
         # vs "She'd rather go to the store" -> advmod(go, rather) = not hedge)
         return len(rather_verbs & advmod_verbs) != 0
+
     if lemma == 'really':
         for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
             if head_ind == begin_ind:
@@ -241,16 +293,20 @@ def check_hedge_deps(lemma, begin_ind, dependencies):
                 if relation == 'advmod' and head_pos[0] == 'v':
                     return False
         return True
+    """
+    # Basically no configuration of detecting and excluding 'supposed to' helps.
     if lemma == 'suppose':
         to_deps = set()
-        supposed_deps = set()
+        supposed_comps = set()
         for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
-            if relation == 'mark' and dependent == 'to':
+            if head_ind == begin_ind:
+                if relation == 'xcomp':
+                    supposed_comps.add(dependent_ind)
+            if relation == 'aux' and dependent == 'to':
                 to_deps.add(head_ind)
-            elif head_ind == begin_ind:
-                supposed_deps.add(dependent_ind)
-        # 'supposed' is not a hedge if used as 'supposed to', meaning the intersection of to_deps and supposed_deps == 0
-        return len(to_deps & supposed_deps) == 0
+        # 'supposed' is not a hedge if used as 'supposed to', meaning the intersection of to_deps and supposed_comps == 0
+        return len(to_deps & supposed_comps) == 0
+    """
     if lemma == 'sure':
         for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
             if head_ind == begin_ind:

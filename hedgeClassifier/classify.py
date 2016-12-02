@@ -227,7 +227,10 @@ def check_hedge_deps(lemma, begin_ind, dependencies):
         much_modified = False
         for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
             if head_ind == begin_ind:
+                # If 'much' is negated directly, this is a hedge.
                 if relation == 'neg':
+                    return True
+                elif relation == 'dep' and dependent == 'not':
                     return True
                 if dependent in much_modifiers:
                     much_modified = True
@@ -238,7 +241,7 @@ def check_hedge_deps(lemma, begin_ind, dependencies):
                     neg_deps.add(head_ind)
                 elif relation == 'prep_without':
                     neg_deps.add(dependent_ind)
-        # If much is negated (ie, the word it modifies is negated), it is a hedge.
+        # If 'much' is negated (ie, the word it modifies is negated), it is a hedge.
         if much_deps & neg_deps:
             return True
         # If it's not negated, and it's modified by a word modifying its quantity/degree, it is not a hedge.
@@ -261,8 +264,11 @@ def check_hedge_deps(lemma, begin_ind, dependencies):
             if head_ind == begin_ind:
                 if relation == 'neg':
                     return False
+                elif relation == 'xcomp':
+                    return False
         return True
     """
+    # This helps CB, but needs to be smarter.
     if lemma == 'practically':
         for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
             if dependent_ind == begin_ind:
@@ -301,13 +307,33 @@ def check_hedge_deps(lemma, begin_ind, dependencies):
         # that verb. ("She's acting rather strangely" -> advmod(act, rather) + advmod(act, strangely) = hedge,
         # vs "She'd rather go to the store" -> advmod(go, rather) = not hedge)
         return len(rather_verbs & advmod_verbs) != 0
-    """
     if lemma == 'really':
+        # This rule is actually wrong - it will basically never return True - however the results take a huge dive
+        # when this is removed.
         for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
             if head_ind == begin_ind:
-                # This is incomplete (sometimes 'really' is still not a hedge when negated, but better than nothing
                 if relation == 'neg':
                     return True
+        return False
+    """
+    if lemma == 'really':
+        neg_deps = set() # negated tokens
+        lemma_deps = set() # tokens modified by really
+        for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
+            if relation == 'neg':
+                neg_deps.add(head_ind)
+            elif relation == 'nsubj' and (dependent == 'nobody' or dependent == 'one'):
+                neg_deps.add(head_ind)
+            elif relation == 'prep_without' or relation == 'prepc_without':
+                neg_deps.add(dependent_ind)
+            elif relation == 'advmod':
+                if dependent_ind == begin_ind:
+                # The following will include sentences like 'I don't really want to go' as hedges, but exclude sentences like
+                # 'I really don't want to go'. In the former, the neg(want, n't) dependency will come before the advmod(want, really)
+                # dependency, but in the latter, it will come after.
+                    if head_ind in neg_deps:
+                        return True
+                    return False
         return False
     """
     if lemma == 'roughly':
@@ -315,6 +341,18 @@ def check_hedge_deps(lemma, begin_ind, dependencies):
             if dependent_ind == begin_ind:
                 if relation == 'advmod' and head_pos[0] == 'v':
                     return False
+        return True
+    if lemma == 'should':
+        should_preds = set() # predicates for which 'should' is an auxiliary verb
+        have_preds = set() # predicates for which 'have' is an auxiliary verb
+        for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
+            if relation == 'aux':
+                if dependent_ind == begin_ind:
+                    should_preds.add(head_ind)
+                elif dependent == 'have':
+                    have_preds.add(head_ind)
+        if should_preds & have_preds:
+            return False
         return True
     """
     # Basically no configuration of detecting and excluding 'supposed to' helps.

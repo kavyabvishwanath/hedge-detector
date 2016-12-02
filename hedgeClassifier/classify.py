@@ -109,7 +109,6 @@ def check_hedge_deps(lemma, begin_ind, dependencies):
                 if relation == 'advmod' and head_pos[0] == 'v':
                     return False
         return True
-    """
     # Two opposing approaches to detect 'feel' - mixed results - need to test each when NA can be excluded.
     if lemma == 'feel':
         for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
@@ -121,6 +120,7 @@ def check_hedge_deps(lemma, begin_ind, dependencies):
                 elif relation == 'prep_like':
                     return False
         return True
+    """
     if lemma == 'feel':
         for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
             if head_ind == begin_ind:
@@ -354,8 +354,6 @@ def check_hedge_deps(lemma, begin_ind, dependencies):
         if should_preds & have_preds:
             return False
         return True
-    """
-    # Basically no configuration of detecting and excluding 'supposed to' helps.
     if lemma == 'suppose':
         to_deps = set()
         supposed_comps = set()
@@ -367,7 +365,6 @@ def check_hedge_deps(lemma, begin_ind, dependencies):
                 to_deps.add(head_ind)
         # 'supposed' is not a hedge if used as 'supposed to', meaning the intersection of to_deps and supposed_comps == 0
         return len(to_deps & supposed_comps) == 0
-    """
     if lemma == 'sure':
         for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
             if head_ind == begin_ind:

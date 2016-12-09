@@ -53,19 +53,16 @@ def check_hedge_next(lemma, next):
     return True
 
 def check_hedge_deps(lemma, begin_ind, dependencies):
-    """
-    # I think the quantmod dependency is correctly parsed far too infrequently for this rule to help.
-    if lemma == 'about':
-        for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
-            if dependent_ind == begin_ind:
-                if relation == 'quantmod':
-                    return True
-        return False
-    """
-    if lemma == 'appear' or lemma == 'assume' or lemma == 'consider':
+    if lemma == 'appear':
         for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
             if head_ind == begin_ind:
                 if relation == 'xcomp' or relation == 'ccomp':
+                    return True
+        return False
+    if lemma == 'assume':
+        for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
+            if head_ind == begin_ind:
+                if relation == 'ccomp':
                     return True
         return False
     if lemma == 'believe':
@@ -95,8 +92,15 @@ def check_hedge_deps(lemma, begin_ind, dependencies):
                 lemma_deps.add(head_ind)
         # Completely/totally is only a hedge if the word it modifies is also negated (eg 'not totally true')
         return len(neg_deps & lemma_deps) != 0
+    if lemma == 'consider':
+        for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
+            if head_ind == begin_ind:
+                if relation == 'xcomp':
+                    return True
+        return False
     if lemma == 'doubt':
         for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
+            # TODO: Maybe handle: "I do not have any doubt that"
             if head_ind == begin_ind:
                 if relation == 'neg':
                     return False
@@ -112,12 +116,15 @@ def check_hedge_deps(lemma, begin_ind, dependencies):
     # Two opposing approaches to detect 'feel' - mixed results - need to test each when NA can be excluded.
     if lemma == 'feel':
         for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
+            # Still not covered: "I feel like going to the store." - too ambiguous
             if head_ind == begin_ind:
                 if relation == 'dobj':
                     return False
-                if relation == 'acomp':
+                elif relation == 'xcomp' and dependent_pos[0] == 'j':
+                    #if relation == 'acomp':
                     return False
-                elif relation == 'prep_like':
+                elif relation == 'nmod:like':
+                    #elif relation == 'prep_like':
                     return False
         return True
     """
@@ -180,11 +187,13 @@ def check_hedge_deps(lemma, begin_ind, dependencies):
     if lemma == 'impression':
         for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
             if head_ind == begin_ind:
-                if relation == 'poss':
+                if relation == 'nmod:poss':
+                    return True
+                elif relation == 'case' and dependent == 'under':
                     return True
             elif dependent_ind == begin_ind:
-                if relation == 'prep_under':
-                    return True
+                #if relation == 'prep_under':
+                    #return True
                 if relation == 'dobj' and (head == 'get' or head == 'have'):
                     # dobj(have, impression) is questionable - eg "I have a good Dylan impression"/"She had a profound impression on me"
                     # Might be better to look for dobj(impression, x) + ccomp(x, y) here - maybe specifically w/ 'that' as complementizer
@@ -216,7 +225,7 @@ def check_hedge_deps(lemma, begin_ind, dependencies):
     if lemma == 'likely' or lemma == 'unlikely':
         for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
             if dependent_ind == begin_ind:
-                if relation == 'amod' and head_pos[0] == 'N':
+                if relation == 'amod' and head_pos[0] == 'n':
                     return False
         return True
     """
@@ -361,7 +370,7 @@ def check_hedge_deps(lemma, begin_ind, dependencies):
             if head_ind == begin_ind:
                 if relation == 'xcomp':
                     supposed_comps.add(dependent_ind)
-            if relation == 'aux' and dependent == 'to':
+            if relation == 'mark' and dependent == 'to':
                 to_deps.add(head_ind)
         # 'supposed' is not a hedge if used as 'supposed to', meaning the intersection of to_deps and supposed_comps == 0
         return len(to_deps & supposed_comps) == 0
@@ -463,7 +472,10 @@ def read_sentences(tokens):
                 sentences.append(sentence)
                 sentence = []
         else:
-            word, tag, lemma, begin_ind = trimmed.split('\t')
+            trimmed_split = trimmed.split('\t')
+            if len(trimmed_split) != 4:
+                continue
+            word, tag, lemma, begin_ind = trimmed_split
             #print word
             #print tag
             #lemma = wordnet_lemmatizer.lemmatize(word,tag[0].lower()) if tag[0].lower() in ['a','n','v'] else wordnet_lemmatizer.lemmatize(word)
@@ -486,7 +498,10 @@ def read_dependencies(lines):
         if trimmed == 'NO DEPS':
             all_deps.append([])
             continue
-        relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos = trimmed.split('\t')
+        trimmed_split = trimmed.split('\t')
+        if len(trimmed_split) != 7:
+            continue
+        relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos = trimmed_split
         sentence_deps.append([relation, head.lower(), dependent.lower(), int(head_ind), int(dependent_ind), 
             head_pos.lower(), dependent_pos.lower()])
     if len(sentence_deps) > 0:

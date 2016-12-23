@@ -341,8 +341,8 @@ public class Experimenter_fb_4_svmlite {
 	public void doTrainAndTest() {
 
 		String refID, taskID, featureList, daID;
-		String trainPath = "ldc_data/uima/train1";
-		String testPath = "ldc_data/uima/dev1";
+		String trainPath = "ldc_data_new/uima/train1";
+		String testPath = "ldc_data_new/uima/dev1";
 		
 		trainAndTest = new TrainAndTest();
 

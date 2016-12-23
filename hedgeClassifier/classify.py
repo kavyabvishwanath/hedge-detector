@@ -120,9 +120,9 @@ def check_hedge_deps(lemma, begin_ind, dependencies):
             if head_ind == begin_ind:
                 if relation == 'dobj':
                     return False
-                if relation == 'acomp':
+                elif relation == 'xcomp' and dependent_pos[0] == 'j':
                     return False
-                elif relation == 'prep_like':
+                elif relation == 'nmod:like':
                     return False
         return True
     if lemma == 'find':
@@ -140,10 +140,6 @@ def check_hedge_deps(lemma, begin_ind, dependencies):
                     return True
                 elif head_pos[0] == 'n':
                     return False
-            elif dependent_ind == begin_ind:
-                # For some reason, this is how CoreNLP 3.3.0 categorizes a lot of uses of 'in general'
-                if relation == 'prep_in':
-                    return True
             # more cases
         return True
     """
@@ -177,11 +173,11 @@ def check_hedge_deps(lemma, begin_ind, dependencies):
     if lemma == 'impression':
         for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
             if head_ind == begin_ind:
-                if relation == 'poss':
+                if relation == 'nmod:poss':
+                    return True
+                elif relation == 'case' and dependent == 'under':
                     return True
             elif dependent_ind == begin_ind:
-                if relation == 'prep_under':
-                    return True
                 if relation == 'dobj' and (head == 'get' or head == 'have'):
                     # dobj(have, impression) is questionable - eg "I have a good Dylan impression"/"She had a profound impression on me"
                     # Might be better to look for dobj(impression, x) + ccomp(x, y) here - maybe specifically w/ 'that' as complementizer
@@ -206,9 +202,6 @@ def check_hedge_deps(lemma, begin_ind, dependencies):
             if dependent_ind == begin_ind:
                 if relation == 'mark':
                     return False
-            #if relation == 'prep_like':
-                #if head_pos[0] == 'n':
-                    #return False
         return True
     if lemma == 'likely' or lemma == 'unlikely':
         for relation, head, dependent, head_ind, dependent_ind, head_pos, dependent_pos in dependencies:
@@ -349,7 +342,7 @@ def check_hedge_deps(lemma, begin_ind, dependencies):
             if head_ind == begin_ind:
                 if relation == 'xcomp':
                     supposed_comps.add(dependent_ind)
-            if relation == 'aux' and dependent == 'to':
+            if relation == 'mark' and dependent == 'to':
                 to_deps.add(head_ind)
         # 'supposed' is not a hedge if used as 'supposed to', meaning the intersection of to_deps and supposed_comps == 0
         return len(to_deps & supposed_comps) == 0

@@ -44,7 +44,7 @@ public class HedgeClassifier {
             for (Sentence sentence : sentences) {
 
                 List<DependencyNode> nodes = JCasUtil.selectCovered(jCas, DependencyNode.class, sentence);
-                if (nodes.size() == 1) // if there are no dependencies, print dummy so token and dependency sentence indices match
+                if (nodes.size() == 0) // if there are no dependencies, print dummy so token and dependency sentence indices match
                     depsWriter.append("NO DEPS\n");
                 for (DependencyNode node : nodes) {
                     FSArray fsarray = node.getChildRelations();
